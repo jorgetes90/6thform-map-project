@@ -29,8 +29,9 @@
     .deviceItem { padding:8px; margin-bottom:5px; background:#f0f0f0; border-radius:5px; cursor:pointer; }
     .modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; }
     .modal.open { display:flex; }
-    .modalCard { background:#fff; padding:20px; border-radius:10px; max-width:90%; max-height:90%; overflow:auto; }
-    .modalCard img { max-width:100%; margin-bottom:10px; }
+    .modalCard { background:#fff; padding:20px; border-radius:10px; max-width:90%; max-height:90%; overflow:auto; box-shadow:0 0 15px rgba(0,0,0,0.3); }
+    .modalCard img { max-width:100%; border-radius:8px; margin-bottom:12px; display:block; }
+    .modalCard button { background:#06b6d4; color:#fff; border:none; border-radius:5px; padding:6px 10px; cursor:pointer; float:right; }
   </style>
 </head>
 <body>
@@ -181,12 +182,22 @@
     function openModal(d) {
       modal.classList.add('open');
       modalTitle.textContent = d['device name'] || d['name'] || '';
-      modalImg.src = d['image url'] || '';
+      
+      // Fix for Imgur / Image URL column
+      const imgUrl = d['image url'] || d['imageurl'] || '';
+      if (imgUrl && (imgUrl.startsWith('http://') || imgUrl.startsWith('https://'))) {
+        modalImg.src = imgUrl;
+        modalImg.style.display = 'block';
+      } else {
+        modalImg.style.display = 'none';
+      }
+
       modalBody.innerHTML = `
         <p><strong>Type:</strong> ${d['type'] || ''}</p>
         <p><strong>Notes:</strong> ${d['notes'] || ''}</p>
       `;
     }
+
     document.getElementById('closeModal').addEventListener('click', () => modal.classList.remove('open'));
 
     // --- MAP SWITCH ---
@@ -194,6 +205,7 @@
       [btnGeneral, btnPhysical, btnLogical].forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     }
+
     btnGeneral.addEventListener('click', () => { mapImg.src = 'Six Form Block general.png'; setActive(btnGeneral); });
     btnPhysical.addEventListener('click', () => { mapImg.src = 'Six Form Block physical.png'; setActive(btnPhysical); });
     btnLogical.addEventListener('click', () => { mapImg.src = 'Six Form Block logical.png'; setActive(btnLogical); });
@@ -208,16 +220,18 @@
       startTX = tx;
       startTY = ty;
     });
+
     window.addEventListener('pointermove', e => {
       if (!isPanning) return;
       tx = startTX + (e.clientX - startX);
       ty = startTY + (e.clientY - startY);
       updateTransform();
     });
+
     window.addEventListener('pointerup', () => { isPanning = false; });
+
     viewerWrap.addEventListener('wheel', e => {
       e.preventDefault();
-      const cx = e.clientX, cy = e.clientY;
       const delta = -e.deltaY * 0.002;
       const newScale = Math.max(0.05, Math.min(scale * (1 + delta), 5));
       scale = newScale;
