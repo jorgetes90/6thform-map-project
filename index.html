@@ -22,20 +22,13 @@
       z-index:10;
       transition: background 0.2s;
     }
-    .roomMarker:hover {
-      background: rgba(6,182,212,0.3);
-    }
+    .roomMarker:hover { background: rgba(6,182,212,0.3); }
     .deviceList { flex:1; overflow:auto; padding:10px; }
     .deviceItem { padding:8px; margin-bottom:5px; background:#f0f0f0; border-radius:5px; cursor:pointer; }
     .modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; }
     .modal.open { display:flex; }
     .modalCard { background:#fff; padding:20px; border-radius:10px; max-width:90%; max-height:90%; overflow:auto; }
-    .modalCard img {
-      display: block;
-      max-width: 100%;
-      max-height: 300px;
-      margin-bottom: 10px;
-    }
+    .modalCard img { max-width:100%; margin-bottom:10px; display:block; }
   </style>
 </head>
 <body>
@@ -47,7 +40,6 @@
         <button id="btnLogical">Logical</button>
       </div>
       <div id="scene">
-        <!-- Keep your original general map here -->
         <img id="mapImg" src="Six Form Block general.png" alt="map" style="width:100%;height:auto;">
       </div>
     </div>
@@ -61,7 +53,7 @@
     <div class="modalCard">
       <button id="closeModal">Close</button>
       <h3 id="modalTitle"></h3>
-      <img id="modalImg" src="">
+      <img id="modalImg" src="" style="display:none;">
       <div id="modalBody"></div>
     </div>
   </div>
@@ -93,11 +85,11 @@
     let devicesByRoom = {};
     let scale = 1, tx = 0, ty = 0;
 
-    // --- CSV Parser ---
+    // --- CSV Parser (case-sensitive headers) ---
     function parseCSV(text) {
       const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
       if (lines.length < 2) return {};
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const headers = lines[0].split(',').map(h => h.trim());
       const data = {};
 
       for (let i = 1; i < lines.length; i++) {
@@ -105,13 +97,11 @@
         const obj = {};
         headers.forEach((h, idx) => obj[h] = (row[idx] || '').trim());
 
-        const room = obj['room'] || obj['room name'] || obj['location'] || '';
+        const room = obj['Room'] || '';
         if (!room) continue;
         if (!data[room]) data[room] = [];
         data[room].push(obj);
       }
-
-      console.log('Parsed device data:', data);
       return data;
     }
 
@@ -121,9 +111,7 @@
         const r = await fetch(COORDS_JSON);
         roomsData = await r.json();
         mapImg.onload = drawMarkers;
-      } catch (err) {
-        console.error('Error loading coords JSON:', err);
-      }
+      } catch (err) { console.error('Error loading coords JSON:', err); }
     }
 
     async function loadDevices() {
@@ -131,9 +119,7 @@
         const r = await fetch(SHEET_CSV);
         const txt = await r.text();
         devicesByRoom = parseCSV(txt);
-      } catch (err) {
-        console.error('Error loading devices CSV:', err);
-      }
+      } catch (err) { console.error('Error loading devices CSV:', err); }
     }
 
     // --- DRAW MARKERS ---
@@ -142,10 +128,7 @@
       const scaleX = mapImg.clientWidth / ORIGINAL_WIDTH;
       const scaleY = mapImg.clientHeight / ORIGINAL_HEIGHT;
 
-      if (!roomsData.rooms) {
-        console.error('roomsData.rooms not found in JSON');
-        return;
-      }
+      if (!roomsData.rooms) return;
 
       roomsData.rooms.forEach(r => {
         const div = document.createElement('div');
@@ -156,10 +139,7 @@
         div.style.top = (r.y * scaleY - CLICK_PADDING) + 'px';
         div.style.width = (r.w * scaleX + CLICK_PADDING * 2) + 'px';
         div.style.height = (r.h * scaleY + CLICK_PADDING * 2) + 'px';
-        div.addEventListener('click', e => {
-          e.stopPropagation();
-          showDevices(r.name);
-        });
+        div.addEventListener('click', e => { e.stopPropagation(); showDevices(r.name); });
         scene.appendChild(div);
       });
     }
@@ -169,15 +149,12 @@
       panelTitle.textContent = room;
       const list = devicesByRoom[room] || [];
       deviceList.innerHTML = '';
-      if (list.length === 0) {
-        deviceList.textContent = 'No devices';
-        return;
-      }
+      if (list.length === 0) { deviceList.textContent = 'No devices'; return; }
 
       list.forEach(d => {
         const el = document.createElement('div');
         el.className = 'deviceItem';
-        el.textContent = d['device name'] || d['devicename'] || d['name'] || 'Device';
+        el.textContent = d['Device Name'] || d['devicename'] || d['name'] || 'Device';
         el.addEventListener('click', () => openModal(d));
         deviceList.appendChild(el);
       });
@@ -186,64 +163,37 @@
     // --- MODAL ---
     function openModal(d){
       modal.classList.add('open');
-      modalTitle.textContent = d['devicename'] || d['device'] || d['name'] || '';
-
-      // FIXED: Read multiple possible image columns
-      const imgUrl = d['image url'] || d['Image URL'] || d['imageurl'] || d['image'] || '';
+      modalTitle.textContent = d['Device Name'] || d['devicename'] || d['name'] || '';
+      const imgUrl = d['Image URL'] || d['image url'] || d['ImageURL'] || d['imageurl'] || d['image'] || '';
       if(imgUrl && (imgUrl.startsWith('http://') || imgUrl.startsWith('https://'))) {
         modalImg.src = imgUrl;
         modalImg.style.display = 'block';
-        modalImg.style.maxWidth = '100%';
-        modalImg.style.maxHeight = '300px';
-        modalImg.style.marginBottom = '10px';
       } else {
         modalImg.style.display = 'none';
       }
-
       modalBody.innerHTML = `
-        <p><strong>Type:</strong> ${d['type'] || ''}</p>
-        <p><strong>Notes:</strong> ${d['notes'] || ''}</p>
+        <p><strong>Type:</strong> ${d['Type'] || ''}</p>
+        <p><strong>Notes:</strong> ${d['Notes'] || ''}</p>
       `;
     }
-    document.getElementById('closeModal').addEventListener('click',()=>modal.classList.remove('open'));
+    document.getElementById('closeModal').addEventListener('click', ()=>modal.classList.remove('open'));
 
     // --- MAP SWITCH ---
     function setActive(btn) {
-      [btnGeneral, btnPhysical, btnLogical].forEach(b => b.classList.remove('active'));
+      [btnGeneral, btnPhysical, btnLogical].forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
     }
-    btnGeneral.addEventListener('click', () => { mapImg.src = 'Six Form Block general.png'; setActive(btnGeneral); });
-    btnPhysical.addEventListener('click', () => { mapImg.src = 'Six Form Block physical.png'; setActive(btnPhysical); });
-    btnLogical.addEventListener('click', () => { mapImg.src = 'Six Form Block logical.png'; setActive(btnLogical); });
+    btnGeneral.addEventListener('click', ()=>{ mapImg.src='Six Form Block general.png'; setActive(btnGeneral); });
+    btnPhysical.addEventListener('click', ()=>{ mapImg.src='Six Form Block physical.png'; setActive(btnPhysical); });
+    btnLogical.addEventListener('click', ()=>{ mapImg.src='Six Form Block logical.png'; setActive(btnLogical); });
 
     // --- ZOOM/PAN ---
-    let isPanning = false, startX = 0, startY = 0, startTX = 0, startTY = 0;
-    viewerWrap.addEventListener('pointerdown', e => {
-      if (e.target.classList.contains('roomMarker')) return;
-      isPanning = true;
-      startX = e.clientX;
-      startY = e.clientY;
-      startTX = tx;
-      startTY = ty;
-    });
-    window.addEventListener('pointermove', e => {
-      if (!isPanning) return;
-      tx = startTX + (e.clientX - startX);
-      ty = startTY + (e.clientY - startY);
-      updateTransform();
-    });
-    window.addEventListener('pointerup', () => { isPanning = false; });
-    viewerWrap.addEventListener('wheel', e => {
-      e.preventDefault();
-      const delta = -e.deltaY * 0.002;
-      const newScale = Math.max(0.05, Math.min(scale * (1 + delta), 5));
-      scale = newScale;
-      updateTransform();
-    }, { passive: false });
-
-    function updateTransform() {
-      scene.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
-    }
+    let isPanning=false,startX=0,startY=0,startTX=0,startTY=0;
+    viewerWrap.addEventListener('pointerdown', e => { if(e.target.classList.contains('roomMarker')) return; isPanning=true; startX=e.clientX; startY=e.clientY; startTX=tx; startTY=ty; });
+    window.addEventListener('pointermove', e => { if(!isPanning) return; tx=startTX+(e.clientX-startX); ty=startTY+(e.clientY-startY); updateTransform(); });
+    window.addEventListener('pointerup', ()=>{isPanning=false;});
+    viewerWrap.addEventListener('wheel', e => { e.preventDefault(); const cx=e.clientX, cy=e.clientY; const delta=-e.deltaY*0.002; scale=Math.max(0.05,Math.min(scale*(1+delta),5)); updateTransform(); }, {passive:false});
+    function updateTransform(){ scene.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; }
 
     // --- INIT ---
     loadCoords();
