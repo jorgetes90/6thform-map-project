@@ -2,50 +2,51 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>6th Form Map</title>
+<title>6th Form Network Map</title>
 <style>
-body, html { margin:0; padding:0; height:100%; font-family:sans-serif; overflow:hidden; }
-.wrap { display:flex; height:100vh; }
-.left { flex:1; position:relative; overflow:hidden; background:#eef2f5; }
-.right { width:400px; background:#fff; border-left:1px solid #ccc; display:flex; flex-direction:column; }
-.topButtons { position:absolute; top:10px; left:10px; display:flex; gap:5px; z-index:20; }
-.topButtons button { padding:6px 10px; border:none; border-radius:4px; background:#06b6d4; color:#fff; cursor:pointer; }
-.topButtons button.active { background:#0ea5e9; }
-#scene { position:relative; width:100%; height:100%; transform-origin:0 0; }
-.roomMarker {
-  position:absolute;
-  border:2px solid #06b6d4;
-  background: rgba(6,182,212,0.1); /* see-through */
-  cursor:pointer;
-  box-sizing:border-box;
-  z-index:10;
-  transition: background 0.2s;
-}
-.roomMarker:hover {
-  background: rgba(6,182,212,0.3); /* highlight on hover */
-}
-.deviceList { flex:1; overflow:auto; padding:10px; }
-.deviceItem { padding:8px; margin-bottom:5px; background:#f0f0f0; border-radius:5px; cursor:pointer; }
-.modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; }
-.modal.open { display:flex; }
-.modalCard { background:#fff; padding:20px; border-radius:10px; max-width:90%; max-height:90%; overflow:auto; }
-.modalCard img { max-width:100%; margin-bottom:10px; }
+  body, html { margin:0; padding:0; height:100%; font-family:sans-serif; }
+  .wrap { display:flex; height:100vh; overflow:hidden; }
+  .left { flex:1; position:relative; overflow:hidden; background:#111; }
+  .topButtons { position:absolute; top:10px; left:10px; z-index:1000; }
+  .topButtons button { margin-right:5px; padding:5px 10px; }
+  .topButtons button.active { background:#06b6d4; color:#fff; }
+  #scene { width:100%; height:100%; overflow:hidden; position:relative; }
+  #mapImg { position:absolute; left:0; top:0; transform-origin:0 0; }
+  .roomMarker {
+    position:absolute;
+    border:2px solid #06b6d4;
+    background: rgba(6,182,212,0.05);
+    cursor:pointer;
+    box-sizing:border-box;
+    z-index:10;
+    transition: background 0.2s;
+  }
+  .roomMarker:hover { background: rgba(6,182,212,0.2); }
+  .right { width:300px; background:#222; color:#fff; padding:10px; overflow-y:auto; }
+  .deviceItem { padding:5px; border-bottom:1px solid #444; cursor:pointer; }
+  .deviceItem:hover { background:#333; }
+  .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
+           background:rgba(0,0,0,0.6); justify-content:center; align-items:center; z-index:2000; }
+  .modal.open { display:flex; }
+  .modalCard { background:#fff; color:#000; padding:20px; max-width:500px; max-height:90%; overflow:auto; }
+  .modalCard img { max-width:100%; margin-bottom:10px; }
+  #togglePanel { cursor:pointer; margin-bottom:10px; display:inline-block; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="left" id="mapContainer">
+  <div class="left" id="viewerWrap">
     <div class="topButtons">
       <button id="btnGeneral" class="active">General</button>
       <button id="btnPhysical">Physical</button>
       <button id="btnLogical">Logical</button>
     </div>
     <div id="scene">
-      <img id="mapImg" src="Six Form Block general.png" alt="map" style="width:100%;height:auto;">
+      <img id="mapImg" src="Six Form Block general.png" alt="map">
     </div>
   </div>
-  <div class="right">
+  <div class="right" id="rightPanel">
+    <div id="togglePanel">&lt; Collapse</div>
     <h3 id="panelTitle">Click a room</h3>
     <div class="deviceList" id="deviceList">Loading devices…</div>
   </div>
@@ -61,136 +62,122 @@ body, html { margin:0; padding:0; height:100%; font-family:sans-serif; overflow:
 </div>
 
 <script>
-// --- CONFIG ---
-const COORDS_JSON = '6thformdata.json';
-const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQCToFK3k1AonGSbmoxSiV3Xef82IV6BRPK_9FtzwmvVHNQDIVo38M0hQHZtKTiVCvmJiJ4kBIgAzO2/pub?gid=0&single=true&output=csv';
-const ORIGINAL_WIDTH = 9348;
-const ORIGINAL_HEIGHT = 10632;
-const CLICK_PADDING = 20; // bigger clickable area
+// Map switching
+const mapImg = document.getElementById("mapImg");
+const btnGeneral = document.getElementById("btnGeneral");
+const btnPhysical = document.getElementById("btnPhysical");
+const btnLogical = document.getElementById("btnLogical");
+const viewerWrap = document.getElementById("scene");
 
-// --- ELEMENTS ---
-const mapImg = document.getElementById('mapImg');
-const scene = document.getElementById('scene');
-const panelTitle = document.getElementById('panelTitle');
-const deviceList = document.getElementById('deviceList');
-const modal = document.getElementById('modal');
-const modalImg = document.getElementById('modalImg');
-const modalTitle = document.getElementById('modalTitle');
-const modalBody = document.getElementById('modalBody');
-const btnGeneral = document.getElementById('btnGeneral');
-const btnPhysical = document.getElementById('btnPhysical');
-const btnLogical = document.getElementById('btnLogical');
-const viewerWrap = document.getElementById('mapContainer');
+const roomsData = [
+  {"name":"Tech Lab","x":6431,"y":6248,"w":483,"h":168},
+  {"name":"Art Room","x":6431,"y":5530,"w":471,"h":224},
+  {"name":"Tourcan Room","x":6911,"y":3426,"w":397,"h":265}
+  // add all rooms here...
+];
 
-// --- STATE ---
-let roomsData = [];
 let devicesByRoom = {};
-let scale = 1, tx = 0, ty = 0;
+const CLICK_PADDING = 50;
+let scaleX=1, scaleY=1;
 
-// --- CSV Parser ---
-function parseCSV(text){
-  const lines=text.split(/\r?\n/).filter(l=>l.trim()!=='');
-  const headers=lines[0].split('\t').map(h=>h.trim().toLowerCase());
-  const data={};
-  for(let i=1;i<lines.length;i++){
-    const row=lines[i].split('\t');
-    const room=row[0];
-    if(!room) continue;
-    if(!data[room]) data[room]=[];
-    let obj={};
-    headers.forEach((h,idx)=>obj[h]=row[idx]||'');
-    data[room].push(obj);
-  }
-  return data;
+// Load devices from Google Sheet CSV with trimming
+async function loadDevices() {
+  try {
+    const res = await fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vQCToFK3k1AonGSbmoxSiV3Xef82IV6BRPK_9FtzwmvVHNQDIVo38M0hQHZtKTiVCvmJiJ4kBIgAzO2/pub?gid=0&single=true&output=csv");
+    const text = await res.text();
+    const lines = text.split("\n").filter(l => l.trim() !== "");
+    const delimiter = lines[0].includes("\t") ? "\t" : ",";
+    const headers = lines[0].split(delimiter).map(h=>h.trim().toLowerCase());
+    const data = {};
+    for(let i=1;i<lines.length;i++){
+      const row = lines[i].split(delimiter);
+      const room = row[0].trim();
+      if(!room) continue;
+      if(!data[room]) data[room]=[];
+      const obj={};
+      headers.forEach((h,idx)=>obj[h]= (row[idx]||"").trim());
+      data[room].push(obj);
+    }
+    devicesByRoom = data;
+  } catch(e){ console.error("Failed to load devices:",e); devicesByRoom={}; }
 }
 
-// --- LOAD DATA ---
-async function loadCoords(){
-  const r = await fetch(COORDS_JSON);
-  roomsData = await r.json();
-  mapImg.onload = drawMarkers; // draw markers after map loaded
-}
-
-async function loadDevices(){
-  const r = await fetch(SHEET_CSV);
-  const txt = await r.text();
-  devicesByRoom = parseCSV(txt);
-}
-
-// --- DRAW MARKERS ---
-function drawMarkers(){
-  scene.querySelectorAll('.roomMarker').forEach(m=>m.remove());
-  const scaleX = mapImg.clientWidth / ORIGINAL_WIDTH;
-  const scaleY = mapImg.clientHeight / ORIGINAL_HEIGHT;
-
-  roomsData.rooms.forEach(r=>{
-    const div = document.createElement('div');
-    div.className='roomMarker';
-    div.dataset.room=r.name;
-    div.title = r.name;
-    div.style.left = (r.x*scaleX - CLICK_PADDING) + 'px';
-    div.style.top = (r.y*scaleY - CLICK_PADDING) + 'px';
-    div.style.width = (r.w*scaleX + CLICK_PADDING*2) + 'px';
-    div.style.height = (r.h*scaleY + CLICK_PADDING*2) + 'px';
-    div.addEventListener('click',e=>{
-      e.stopPropagation();
-      showDevices(r.name);
-    });
-    scene.appendChild(div);
-  });
-}
-
-// --- SHOW DEVICES ---
-function showDevices(room){
-  panelTitle.textContent = room;
-  const list = devicesByRoom[room] || [];
-  deviceList.innerHTML='';
-  if(list.length===0){ deviceList.textContent='No devices'; return; }
+// Show devices for a room
+function showDevices(roomName){
+  const list = devicesByRoom[roomName]||[];
+  const deviceListEl = document.getElementById("deviceList");
+  deviceListEl.innerHTML="";
+  if(list.length===0){ deviceListEl.textContent="No devices"; return; }
   list.forEach(d=>{
-    const el=document.createElement('div');
-    el.className='deviceItem';
-    el.textContent=d['device name']||'Device';
-    el.addEventListener('click',()=>openModal(d));
-    deviceList.appendChild(el);
+    const el=document.createElement("div");
+    el.className="deviceItem";
+    el.textContent=d["device name"]||"Device";
+    el.addEventListener("click",()=>openModal(d));
+    deviceListEl.appendChild(el);
   });
 }
 
-// --- MODAL ---
+// Modal functions
 function openModal(d){
-  modal.classList.add('open');
-  modalTitle.textContent = d['device name']||'';
-  modalImg.src = d['image url']||'';
-  modalBody.textContent = `Type: ${d['type']||''}\nNotes: ${d['notes']||''}`;
+  const modal=document.getElementById("modal");
+  modal.classList.add("open");
+  document.getElementById("modalTitle").textContent=d["device name"];
+  document.getElementById("modalImg").src=d["image url"];
+  document.getElementById("modalBody").textContent=`Type: ${d["type"]}\nNotes: ${d["notes"]}`;
 }
-document.getElementById('closeModal').addEventListener('click',()=>modal.classList.remove('open'));
+document.getElementById("closeModal").addEventListener("click",()=>document.getElementById("modal").classList.remove("open"));
 
-// --- MAP SWITCH ---
-function setActive(btn){
-  [btnGeneral,btnPhysical,btnLogical].forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+// Draw room markers
+function drawMarkers(){
+  document.querySelectorAll(".roomMarker").forEach(r=>r.remove());
+  const rect = mapImg.getBoundingClientRect();
+  scaleX = rect.width / 9348;
+  scaleY = rect.height / 10632;
+  roomsData.forEach(r=>{
+    const div=document.createElement("div");
+    div.className="roomMarker";
+    div.style.left=(r.x*scaleX - CLICK_PADDING)+'px';
+    div.style.top=(r.y*scaleY - CLICK_PADDING)+'px';
+    div.style.width=(r.w*scaleX + CLICK_PADDING*2)+'px';
+    div.style.height=(r.h*scaleY + CLICK_PADDING*2)+'px';
+    div.title=r.name;
+    div.addEventListener("click",()=>showDevices(r.name));
+    viewerWrap.appendChild(div);
+  });
 }
-btnGeneral.addEventListener('click',()=>{mapImg.src='Six Form Block general.png'; setActive(btnGeneral);});
-btnPhysical.addEventListener('click',()=>{mapImg.src='Six Form Block physical.png'; setActive(btnPhysical);});
-btnLogical.addEventListener('click',()=>{mapImg.src='Six Form Block logical.png'; setActive(btnLogical);});
 
-// --- ZOOM/PAN ---
-let isPanning=false,startX=0,startY=0,startTX=0,startTY=0;
-viewerWrap.addEventListener('pointerdown',e=>{ if(e.target.classList.contains('roomMarker')) return; isPanning=true; startX=e.clientX; startY=e.clientY; startTX=tx; startTY=ty; });
-window.addEventListener('pointermove',e=>{ if(!isPanning) return; tx=startTX+(e.clientX-startX); ty=startTY+(e.clientY-startY); updateTransform(); });
-window.addEventListener('pointerup',()=>{isPanning=false;});
-viewerWrap.addEventListener('wheel',e=>{
+// Map switch buttons
+function setActive(btn){ document.querySelectorAll(".topButtons button").forEach(b=>b.classList.remove("active")); btn.classList.add("active"); }
+btnGeneral.addEventListener("click",()=>{ mapImg.src="Six Form Block general.png"; setActive(btnGeneral); mapImg.onload=drawMarkers; });
+btnPhysical.addEventListener("click",()=>{ mapImg.src="Six Form Block physical.png"; setActive(btnPhysical); mapImg.onload=drawMarkers; });
+btnLogical.addEventListener("click",()=>{ mapImg.src="Six Form Block logical.png"; setActive(btnLogical); mapImg.onload=drawMarkers; });
+
+// Right panel toggle
+const rightPanel = document.getElementById("rightPanel");
+document.getElementById("togglePanel").addEventListener("click",()=>{
+  if(rightPanel.style.width==="0px"){ rightPanel.style.width="300px"; }else{ rightPanel.style.width="0px"; }
+});
+
+// Zoom/pan
+let isPanning=false, startX, startY, origX=0, origY=0, zoom=1;
+viewerWrap.addEventListener("mousedown", e=>{ isPanning=true; startX=e.clientX; startY=e.clientY; });
+viewerWrap.addEventListener("mousemove", e=>{
+  if(!isPanning) return;
+  const dx=e.clientX-startX; const dy=e.clientY-startY;
+  mapImg.style.left=(origX+dx)+"px"; mapImg.style.top=(origY+dy)+"px";
+});
+viewerWrap.addEventListener("mouseup", e=>{ isPanning=false; origX=parseInt(mapImg.style.left)||0; origY=parseInt(mapImg.style.top)||0; });
+viewerWrap.addEventListener("mouseleave", ()=>{ isPanning=false; origX=parseInt(mapImg.style.left)||0; origY=parseInt(mapImg.style.top)||0; });
+viewerWrap.addEventListener("wheel", e=>{
   e.preventDefault();
-  const cx=e.clientX,cy=e.clientY;
-  const delta=-e.deltaY*0.002;
-  scale=Math.max(0.05,Math.min(scale*(1+delta),5));
-  tx=cx-(cx-tx)*(scale/(scale/(1+delta)));
-  ty=cy-(cy-ty)*(scale/(scale/(1+delta)));
-  updateTransform();
-},{passive:false});
-function updateTransform(){ scene.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; }
+  const delta=e.deltaY>0?-0.1:0.1;
+  zoom=Math.min(Math.max(0.1,zoom+delta),3);
+  mapImg.style.transform=`scale(${zoom})`;
+  drawMarkers();
+});
 
-// --- INIT ---
-loadCoords();
+// Initialize
+mapImg.onload = drawMarkers;
 loadDevices();
 </script>
 </body>
