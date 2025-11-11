@@ -1,0 +1,187 @@
+{
+  "imageName": "d33521a0-c750-4fe1-a81e-3dba41c4d441",
+  "imageWidth": 9348,
+  "imageHeight": 10632,
+  "rooms": [
+    {
+      "name": "Tourcan Room",
+      "x": 7110,
+      "y": 3558
+    },
+    {
+      "name": "Art Room",
+      "x": 6666,
+      "y": 5642
+    },
+    {
+      "name": "Tech Lab",
+      "x": 6672,
+      "y": 6332
+    },
+    {
+      "name": "LN3",
+      "x": 6668,
+      "y": 6674
+    },
+    {
+      "name": "Double Room",
+      "x": 6690,
+      "y": 7437
+    },
+    {
+      "name": "LN10",
+      "x": 8008,
+      "y": 7639
+    },
+    {
+      "name": "LN9",
+      "x": 7996,
+      "y": 7086
+    },
+    {
+      "name": "LN8",
+      "x": 7963,
+      "y": 6548
+    },
+    {
+      "name": "LN7",
+      "x": 7974,
+      "y": 6016
+    },
+    {
+      "name": "LN6",
+      "x": 7956,
+      "y": 5444
+    },
+    {
+      "name": "Upstairs cam back",
+      "x": 8548,
+      "y": 8420
+    },
+    {
+      "name": "Upstairs Cam front",
+      "x": 7554,
+      "y": 5288
+    },
+    {
+      "name": "Lab 4 outdoor back cam",
+      "x": 4188,
+      "y": 9714
+    },
+    {
+      "name": "Lab4 outdoor front cam",
+      "x": 2222,
+      "y": 9647
+    },
+    {
+      "name": "Lab 4",
+      "x": 3250,
+      "y": 9281
+    },
+    {
+      "name": "Flambouyant",
+      "x": 3238,
+      "y": 8521
+    },
+    {
+      "name": "Mahogany",
+      "x": 3200,
+      "y": 7964
+    },
+    {
+      "name": "Helicania",
+      "x": 3312,
+      "y": 7193
+    },
+    {
+      "name": "Black Orchid",
+      "x": 3192,
+      "y": 6566
+    },
+    {
+      "name": "Kitchen Lab",
+      "x": 3200,
+      "y": 5763
+    },
+    {
+      "name": "Chem and Bio Lab",
+      "x": 3274,
+      "y": 5211
+    },
+    {
+      "name": "Iguana Room",
+      "x": 3332,
+      "y": 4521
+    },
+    {
+      "name": "Staff Room",
+      "x": 3374,
+      "y": 3805
+    },
+    {
+      "name": "Conference Room",
+      "x": 2912,
+      "y": 3364
+    },
+    {
+      "name": "Accounts lounge",
+      "x": 2008,
+      "y": 3446
+    },
+    {
+      "name": "Counselor's Office",
+      "x": 1298,
+      "y": 3630
+    },
+    {
+      "name": "Office",
+      "x": 1287,
+      "y": 2974
+    },
+    {
+      "name": "Accounts",
+      "x": 2015,
+      "y": 2718
+    },
+    {
+      "name": "Assistant Dean office",
+      "x": 2642,
+      "y": 2756
+    },
+    {
+      "name": "Dean's Office",
+      "x": 3172,
+      "y": 2706
+    },
+    {
+      "name": "OSS",
+      "x": 3706,
+      "y": 2359
+    },
+    {
+      "name": "Teacher's Lounge",
+      "x": 3733,
+      "y": 3022
+    },
+    {
+      "name": "Security Booth",
+      "x": 3550,
+      "y": 747
+    },
+    {
+      "name": "pavilion",
+      "x": 1416,
+      "y": 7603
+    },
+    {
+      "name": "Staff room outdoor cam",
+      "x": 4146,
+      "y": 4072
+    },
+    {
+      "name": "Accounts outdoor cam",
+      "x": 1996,
+      "y": 3990
+    }
+  ]
+}
