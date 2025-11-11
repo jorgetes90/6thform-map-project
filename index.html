@@ -83,7 +83,7 @@ let scaleX=1, scaleY=1;
 // Load devices from Google Sheet CSV with trimming
 async function loadDevices() {
   try {
-    const res = await fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vQCToFK3k1AonGSbmoxSiV3Xef82IV6BRPK_9FtzwmvVHNQDIVo38M0hQHZtKTiVCvmJiJ4kBIgAzO2/pub?gid=0&single=true&output=csv");
+    const res = await fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vQCToFK3k1AonGSbmoxSiV3Xef82IV6BRPK_9FtzwmvVHNQDIVo38M0hQHZtKTiVCvmJiJ4kBIgAzO2/pub?output=csv");
     const text = await res.text();
     const lines = text.split("\n").filter(l => l.trim() !== "");
     const delimiter = lines[0].includes("\t") ? "\t" : ",";
