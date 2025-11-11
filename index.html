@@ -33,7 +33,7 @@
     .modalCard img {
       display: block;
       max-width: 100%;
-      max-height: 300px; /* ensure image shows */
+      max-height: 300px;
       margin-bottom: 10px;
     }
   </style>
@@ -47,7 +47,8 @@
         <button id="btnLogical">Logical</button>
       </div>
       <div id="scene">
-        <img id="mapImg" src="https://i.imgur.com/C5qcZEh.jpeg" alt="map" style="width:100%;height:auto;">
+        <!-- Keep your original general map here -->
+        <img id="mapImg" src="Six Form Block general.png" alt="map" style="width:100%;height:auto;">
       </div>
     </div>
     <div class="right">
@@ -187,6 +188,7 @@
       modal.classList.add('open');
       modalTitle.textContent = d['devicename'] || d['device'] || d['name'] || '';
 
+      // FIXED: Read multiple possible image columns
       const imgUrl = d['image url'] || d['Image URL'] || d['imageurl'] || d['image'] || '';
       if(imgUrl && (imgUrl.startsWith('http://') || imgUrl.startsWith('https://'))) {
         modalImg.src = imgUrl;
@@ -210,7 +212,7 @@
       [btnGeneral, btnPhysical, btnLogical].forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     }
-    btnGeneral.addEventListener('click', () => { mapImg.src = 'https://i.imgur.com/C5qcZEh.jpeg'; setActive(btnGeneral); });
+    btnGeneral.addEventListener('click', () => { mapImg.src = 'Six Form Block general.png'; setActive(btnGeneral); });
     btnPhysical.addEventListener('click', () => { mapImg.src = 'Six Form Block physical.png'; setActive(btnPhysical); });
     btnLogical.addEventListener('click', () => { mapImg.src = 'Six Form Block logical.png'; setActive(btnLogical); });
 
@@ -233,7 +235,6 @@
     window.addEventListener('pointerup', () => { isPanning = false; });
     viewerWrap.addEventListener('wheel', e => {
       e.preventDefault();
-      const cx = e.clientX, cy = e.clientY;
       const delta = -e.deltaY * 0.002;
       const newScale = Math.max(0.05, Math.min(scale * (1 + delta), 5));
       scale = newScale;
