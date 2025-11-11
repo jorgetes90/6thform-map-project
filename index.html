@@ -161,7 +161,7 @@
     function openModal(d){
       modal.classList.add('open');
       modalTitle.textContent = d['devicename'] || d['device'] || d['name'] || '';
-      const imgUrl = d['imageurl'] || d['image'] || '';
+     const imgUrl = d['image url'] || d['Image URL'] || d['imageurl'] || d['image'] || '';
       if(imgUrl && (imgUrl.startsWith('http://') || imgUrl.startsWith('https://'))) {
         modalImg.src = imgUrl;
         modalImg.style.display = 'block';
