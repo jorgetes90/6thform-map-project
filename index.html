@@ -59,18 +59,14 @@ body, html { margin:0; padding:0; height:100%; font-family:sans-serif; overflow:
 </div>
 
 <script>
-// --- CONFIG ---
 const COORDS_JSON = '6thformdata.json';
 const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQCToFK3k1AonGSbmoxSiV3Xef82IV6BRPK_9FtzwmvVHNQDIVo38M0hQHZtKTiVCvmJiJ4kBIgAzO2/pub?output=csv';
 const ORIGINAL_WIDTH = 9348;
 const ORIGINAL_HEIGHT = 10632;
 const CLICK_PADDING = 20;
+const offsetX = 0; // adjust markers manually
+const offsetY = 0;
 
-// --- OFFSET FOR MANUAL ADJUST ---
-const offsetX = 15; // positive moves markers right, negative left
-const offsetY = 0;  // positive moves markers down, negative up
-
-// --- ELEMENTS ---
 const mapImg = document.getElementById('mapImg');
 const scene = document.getElementById('scene');
 const panelTitle = document.getElementById('panelTitle');
@@ -84,88 +80,97 @@ const btnPhysical = document.getElementById('btnPhysical');
 const btnLogical = document.getElementById('btnLogical');
 const viewerWrap = document.getElementById('mapContainer');
 
-// --- STATE ---
 let roomsData = [];
 let devicesByRoom = {};
-let scale = 1, tx = 0, ty = 0;
+let scale=1, tx=0, ty=0;
 
-// --- CSV Parser ---
-function parseCSV(text) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-  if(lines.length < 2) return {};
-  const headers = lines[0].split(',').map(h => h.trim());
+// --- CSV parser that handles quotes and commas ---
+function parseCSV(text){
+  const lines = text.split(/\r?\n/).filter(l=>l.trim()!=='');
+  if(lines.length<2) return {};
+  const headers = [];
+  const firstLine = lines[0];
+  let curr='', inQuotes=false;
+  for(let c of firstLine){
+    if(c === '"'){ inQuotes = !inQuotes; continue; }
+    if(c === ',' && !inQuotes){ headers.push(curr.trim()); curr=''; continue; }
+    curr += c;
+  }
+  headers.push(curr.trim());
+
   const data = {};
   for(let i=1;i<lines.length;i++){
-    const row = lines[i].split(',');
+    const row = [];
+    let cell='', inQuotes=false;
+    for(let c of lines[i]){
+      if(c === '"'){ inQuotes = !inQuotes; continue; }
+      if(c === ',' && !inQuotes){ row.push(cell.trim()); cell=''; continue; }
+      cell += c;
+    }
+    row.push(cell.trim());
     const obj = {};
-    headers.forEach((h, idx)=>obj[h]= (row[idx]||'').trim());
-    const room = obj['Room'] || obj['room'] || obj['Location'] || '';
+    headers.forEach((h,idx)=>obj[h]=row[idx]||'');
+    const room = obj['Room'] || obj['room'] || '';
     if(!room) continue;
-    if(!data[room]) data[room] = [];
+    if(!data[room]) data[room]=[];
     data[room].push(obj);
   }
-  console.log('Parsed device data:', data);
   return data;
 }
 
-// --- LOAD DATA ---
+// --- load coords ---
 async function loadCoords(){
-  try{
-    const r = await fetch(COORDS_JSON);
-    roomsData = await r.json();
-    mapImg.onload = drawMarkers;
-  } catch(err){ console.error('Error loading coords JSON:', err);}
+  try{ const r = await fetch(COORDS_JSON); roomsData = await r.json(); mapImg.onload = drawMarkers; }
+  catch(err){ console.error('Error loading coords JSON', err);}
 }
 
+// --- load devices ---
 async function loadDevices(){
-  try{
-    const r = await fetch(SHEET_CSV);
-    const txt = await r.text();
-    devicesByRoom = parseCSV(txt);
-  } catch(err){ console.error('Error loading devices CSV:', err);}
+  try{ const r = await fetch(SHEET_CSV); const txt = await r.text(); devicesByRoom = parseCSV(txt); }
+  catch(err){ console.error('Error loading devices CSV', err);}
 }
 
-// --- DRAW MARKERS ---
+// --- draw markers ---
 function drawMarkers(){
   scene.querySelectorAll('.roomMarker').forEach(m=>m.remove());
   const scaleX = mapImg.clientWidth / ORIGINAL_WIDTH;
   const scaleY = mapImg.clientHeight / ORIGINAL_HEIGHT;
-
-  if(!roomsData.rooms){ console.error('roomsData.rooms not found in JSON'); return; }
-
+  if(!roomsData.rooms) return;
   roomsData.rooms.forEach(r=>{
     const div = document.createElement('div');
-    div.className = 'roomMarker';
+    div.className='roomMarker';
     div.dataset.room = r.name;
-    div.title = r.name;
-    div.style.left = (r.x * scaleX - CLICK_PADDING + offsetX) + 'px';
-    div.style.top = (r.y * scaleY - CLICK_PADDING + offsetY) + 'px';
-    div.style.width = (r.w * scaleX + CLICK_PADDING*2) + 'px';
-    div.style.height = (r.h * scaleY + CLICK_PADDING*2) + 'px';
+    div.title=r.name;
+    div.style.left = (r.x*scaleX - CLICK_PADDING + offsetX)+'px';
+    div.style.top = (r.y*scaleY - CLICK_PADDING + offsetY)+'px';
+    div.style.width = (r.w*scaleX + CLICK_PADDING*2)+'px';
+    div.style.height = (r.h*scaleY + CLICK_PADDING*2)+'px';
     div.addEventListener('click', e=>{ e.stopPropagation(); showDevices(r.name); });
     scene.appendChild(div);
   });
 }
 
-// --- SHOW DEVICES ---
+// --- show devices ---
 function showDevices(room){
-  panelTitle.textContent = room;
+  panelTitle.textContent=room;
   const list = devicesByRoom[room] || [];
-  deviceList.innerHTML = '';
+  deviceList.innerHTML='';
   if(list.length===0){ deviceList.textContent='No devices'; return; }
   list.forEach(d=>{
     const el = document.createElement('div');
     el.className='deviceItem';
-    el.textContent = d['Device Name'] || d['devicename'] || d['device'] || d['name'] || 'Device';
+    el.textContent = d['Device Name'] || d['devicename'] || d['Name'] || 'Device';
     el.addEventListener('click', ()=>openModal(d));
     deviceList.appendChild(el);
   });
 }
 
-// --- MODAL ---
+// --- modal ---
 function openModal(d){
   modal.classList.add('open');
-  modalTitle.textContent = d['Device Name'] || d['devicename'] || d['device'] || d['name'] || '';
+  modalTitle.textContent = d['Device Name'] || d['devicename'] || d['Name'] || '';
+
+  // Try all common variants of Image URL
   const imgUrl = d['Image URL'] || d['image url'] || d['Image'] || d['image'] || '';
   if(imgUrl && (imgUrl.startsWith('http://') || imgUrl.startsWith('https://'))){
     modalImg.src = imgUrl;
@@ -173,41 +178,26 @@ function openModal(d){
   } else {
     modalImg.style.display = 'none';
   }
+
   modalBody.innerHTML = `
     <p><strong>Type:</strong> ${d['Type'] || d['type'] || ''}</p>
     <p><strong>Notes:</strong> ${d['Notes'] || d['notes'] || ''}</p>
   `;
 }
-document.getElementById('closeModal').addEventListener('click',()=>modal.classList.remove('open'));
+document.getElementById('closeModal').addEventListener('click', ()=>modal.classList.remove('open'));
 
-// --- MAP SWITCH ---
-function setActive(btn){
-  [btnGeneral,btnPhysical,btnLogical].forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-}
+// --- map switch ---
+function setActive(btn){ [btnGeneral,btnPhysical,btnLogical].forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
 btnGeneral.addEventListener('click',()=>{ mapImg.src='Six Form Block general.png'; setActive(btnGeneral); });
 btnPhysical.addEventListener('click',()=>{ mapImg.src='Six Form Block physical.png'; setActive(btnPhysical); });
 btnLogical.addEventListener('click',()=>{ mapImg.src='Six Form Block logical.png'; setActive(btnLogical); });
 
-// --- ZOOM/PAN ---
+// --- zoom/pan ---
 let isPanning=false,startX=0,startY=0,startTX=0,startTY=0;
-viewerWrap.addEventListener('pointerdown',e=>{
-  if(e.target.classList.contains('roomMarker')) return;
-  isPanning=true; startX=e.clientX; startY=e.clientY; startTX=tx; startTY=ty;
-});
-window.addEventListener('pointermove',e=>{
-  if(!isPanning) return;
-  tx=startTX+(e.clientX-startX);
-  ty=startTY+(e.clientY-startY);
-  updateTransform();
-});
-window.addEventListener('pointerup',()=>{ isPanning=false; });
-viewerWrap.addEventListener('wheel',e=>{
-  e.preventDefault();
-  const delta=-e.deltaY*0.002;
-  scale=Math.max(0.05,Math.min(scale*(1+delta),5));
-  updateTransform();
-},{passive:false});
+viewerWrap.addEventListener('pointerdown', e=>{ if(e.target.classList.contains('roomMarker')) return; isPanning=true; startX=e.clientX; startY=e.clientY; startTX=tx; startTY=ty; });
+window.addEventListener('pointermove', e=>{ if(!isPanning) return; tx=startTX+(e.clientX-startX); ty=startTY+(e.clientY-startY); updateTransform(); });
+window.addEventListener('pointerup', ()=>{ isPanning=false; });
+viewerWrap.addEventListener('wheel', e=>{ e.preventDefault(); const delta=-e.deltaY*0.002; scale=Math.max(0.05,Math.min(scale*(1+delta),5)); updateTransform(); }, {passive:false});
 function updateTransform(){ scene.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; }
 
 // --- INIT ---
