@@ -80,7 +80,7 @@ let devicesByRoom = {};
 const CLICK_PADDING = 50;
 let scaleX=1, scaleY=1;
 
-// Load devices from Google Sheet CSV with trimming
+// Load devices from Google Sheet CSV
 async function loadDevices() {
   try {
     const res = await fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vQCToFK3k1AonGSbmoxSiV3Xef82IV6BRPK_9FtzwmvVHNQDIVo38M0hQHZtKTiVCvmJiJ4kBIgAzO2/pub?output=csv");
@@ -91,11 +91,10 @@ async function loadDevices() {
     const data = {};
     for(let i=1;i<lines.length;i++){
       const row = lines[i].split(delimiter);
-      const room = row[0].trim();
-      if(!room) continue;
+      const room = row[0]; if(!room) continue;
       if(!data[room]) data[room]=[];
       const obj={};
-      headers.forEach((h,idx)=>obj[h]= (row[idx]||"").trim());
+      headers.forEach((h,idx)=>obj[h]=row[idx]||"");
       data[room].push(obj);
     }
     devicesByRoom = data;
