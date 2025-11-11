@@ -161,14 +161,18 @@
     }
 
 // --- MODAL ---
-function openModal(d){
+function openModal(d) {
   modal.classList.add('open');
   modalTitle.textContent = d['Device Name'] || d['devicename'] || d['name'] || '';
-
-  // Fix: show default image if no URL
-  const imgUrl = d['Image URL'] || d['image url'] || d['ImageURL'] || d['imageurl'] || d['image'] || 'https://i.imgur.com/C5qcZEh.jpeg';
-  modalImg.src = imgUrl;
-  modalImg.style.display = 'block'; // always show image, even default
+  
+  // Use only the Image URL column
+  const imgUrl = d['Image URL'] || '';
+  if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
+    modalImg.src = imgUrl;
+    modalImg.style.display = 'block';
+  } else {
+    modalImg.style.display = 'none';
+  }
 
   modalBody.innerHTML = `
     <p><strong>Type:</strong> ${d['Type'] || ''}</p>
