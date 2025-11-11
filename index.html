@@ -30,7 +30,7 @@
     .modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; }
     .modal.open { display:flex; }
     .modalCard { background:#fff; padding:20px; border-radius:10px; max-width:90%; max-height:90%; overflow:auto; }
-    .modalCard img { max-width:100%; margin-bottom:10px; }
+    .modalCard img { max-width:100%; margin-bottom:10px; border-radius:8px; display:block; }
   </style>
 </head>
 <body>
@@ -61,14 +61,12 @@
   </div>
 
   <script>
-    // --- CONFIG ---
     const COORDS_JSON = '6thformdata.json';
     const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQCToFK3k1AonGSbmoxSiV3Xef82IV6BRPK_9FtzwmvVHNQDIVo38M0hQHZtKTiVCvmJiJ4kBIgAzO2/pub?output=csv';
     const ORIGINAL_WIDTH = 9348;
     const ORIGINAL_HEIGHT = 10632;
     const CLICK_PADDING = 20;
 
-    // --- ELEMENTS ---
     const mapImg = document.getElementById('mapImg');
     const scene = document.getElementById('scene');
     const panelTitle = document.getElementById('panelTitle');
@@ -82,12 +80,10 @@
     const btnLogical = document.getElementById('btnLogical');
     const viewerWrap = document.getElementById('mapContainer');
 
-    // --- STATE ---
     let roomsData = [];
     let devicesByRoom = {};
     let scale = 1, tx = 0, ty = 0;
 
-    // --- CSV Parser ---
     function parseCSV(text) {
       const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
       if (lines.length < 2) return {};
@@ -98,18 +94,14 @@
         const row = lines[i].split(',');
         const obj = {};
         headers.forEach((h, idx) => obj[h] = (row[idx] || '').trim());
-
         const room = obj['room'] || obj['room name'] || obj['location'] || '';
         if (!room) continue;
         if (!data[room]) data[room] = [];
         data[room].push(obj);
       }
-
-      console.log('Parsed device data:', data);
       return data;
     }
 
-    // --- LOAD DATA ---
     async function loadCoords() {
       try {
         const r = await fetch(COORDS_JSON);
@@ -130,16 +122,12 @@
       }
     }
 
-    // --- DRAW MARKERS ---
     function drawMarkers() {
       scene.querySelectorAll('.roomMarker').forEach(m => m.remove());
       const scaleX = mapImg.clientWidth / ORIGINAL_WIDTH;
       const scaleY = mapImg.clientHeight / ORIGINAL_HEIGHT;
 
-      if (!roomsData.rooms) {
-        console.error('roomsData.rooms not found in JSON');
-        return;
-      }
+      if (!roomsData.rooms) return;
 
       roomsData.rooms.forEach(r => {
         const div = document.createElement('div');
@@ -158,7 +146,6 @@
       });
     }
 
-    // --- SHOW DEVICES ---
     function showDevices(room) {
       panelTitle.textContent = room;
       const list = devicesByRoom[room] || [];
@@ -177,19 +164,27 @@
       });
     }
 
-    // --- MODAL ---
+    // --- FIXED IMAGE HANDLING ---
     function openModal(d) {
       modal.classList.add('open');
       modalTitle.textContent = d['device name'] || d['name'] || '';
-      modalImg.src = d['image url'] || '';
+
+      const imgUrl = (d['image url'] || d['imageurl'] || '').trim().replace(/^"|"$/g, '');
+      if (imgUrl && (imgUrl.startsWith('http://') || imgUrl.startsWith('https://'))) {
+        modalImg.src = imgUrl;
+        modalImg.style.display = 'block';
+      } else {
+        modalImg.style.display = 'none';
+      }
+
       modalBody.innerHTML = `
         <p><strong>Type:</strong> ${d['type'] || ''}</p>
         <p><strong>Notes:</strong> ${d['notes'] || ''}</p>
       `;
     }
+
     document.getElementById('closeModal').addEventListener('click', () => modal.classList.remove('open'));
 
-    // --- MAP SWITCH ---
     function setActive(btn) {
       [btnGeneral, btnPhysical, btnLogical].forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -198,7 +193,6 @@
     btnPhysical.addEventListener('click', () => { mapImg.src = 'Six Form Block physical.png'; setActive(btnPhysical); });
     btnLogical.addEventListener('click', () => { mapImg.src = 'Six Form Block logical.png'; setActive(btnLogical); });
 
-    // --- ZOOM/PAN ---
     let isPanning = false, startX = 0, startY = 0, startTX = 0, startTY = 0;
     viewerWrap.addEventListener('pointerdown', e => {
       if (e.target.classList.contains('roomMarker')) return;
@@ -217,7 +211,6 @@
     window.addEventListener('pointerup', () => { isPanning = false; });
     viewerWrap.addEventListener('wheel', e => {
       e.preventDefault();
-      const cx = e.clientX, cy = e.clientY;
       const delta = -e.deltaY * 0.002;
       const newScale = Math.max(0.05, Math.min(scale * (1 + delta), 5));
       scale = newScale;
@@ -228,7 +221,6 @@
       scene.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
     }
 
-    // --- INIT ---
     loadCoords();
     loadDevices();
   </script>
