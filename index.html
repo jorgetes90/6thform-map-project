@@ -1,197 +1,236 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>6th Form Map</title>
-<style>
-body, html { margin:0; padding:0; height:100%; font-family:sans-serif; overflow:hidden; }
-.wrap { display:flex; height:100vh; }
-.left { flex:1; position:relative; overflow:hidden; background:#eef2f5; }
-.right { width:400px; background:#fff; border-left:1px solid #ccc; display:flex; flex-direction:column; }
-.topButtons { position:absolute; top:10px; left:10px; display:flex; gap:5px; z-index:20; }
-.topButtons button { padding:6px 10px; border:none; border-radius:4px; background:#06b6d4; color:#fff; cursor:pointer; }
-.topButtons button.active { background:#0ea5e9; }
-#scene { position:relative; width:100%; height:100%; transform-origin:0 0; }
-.roomMarker {
-  position:absolute;
-  border:2px solid #06b6d4;
-  background: rgba(6,182,212,0.1); /* see-through */
-  cursor:pointer;
-  box-sizing:border-box;
-  z-index:10;
-  transition: background 0.2s;
-}
-.roomMarker:hover {
-  background: rgba(6,182,212,0.3); /* highlight on hover */
-}
-.deviceList { flex:1; overflow:auto; padding:10px; }
-.deviceItem { padding:8px; margin-bottom:5px; background:#f0f0f0; border-radius:5px; cursor:pointer; }
-.modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; }
-.modal.open { display:flex; }
-.modalCard { background:#fff; padding:20px; border-radius:10px; max-width:90%; max-height:90%; overflow:auto; }
-.modalCard img { max-width:100%; margin-bottom:10px; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>6th Form Map</title>
+  <style>
+    body, html { margin:0; padding:0; height:100%; font-family:sans-serif; overflow:hidden; }
+    .wrap { display:flex; height:100vh; }
+    .left { flex:1; position:relative; overflow:hidden; background:#eef2f5; }
+    .right { width:400px; background:#fff; border-left:1px solid #ccc; display:flex; flex-direction:column; }
+    .topButtons { position:absolute; top:10px; left:10px; display:flex; gap:5px; z-index:20; }
+    .topButtons button { padding:6px 10px; border:none; border-radius:4px; background:#06b6d4; color:#fff; cursor:pointer; }
+    .topButtons button.active { background:#0ea5e9; }
+    #scene { position:relative; width:100%; height:100%; transform-origin:0 0; }
+    .roomMarker {
+      position:absolute;
+      border:2px solid #06b6d4;
+      background: rgba(6,182,212,0.1);
+      cursor:pointer;
+      box-sizing:border-box;
+      z-index:10;
+      transition: background 0.2s;
+    }
+    .roomMarker:hover {
+      background: rgba(6,182,212,0.3);
+    }
+    .deviceList { flex:1; overflow:auto; padding:10px; }
+    .deviceItem { padding:8px; margin-bottom:5px; background:#f0f0f0; border-radius:5px; cursor:pointer; }
+    .modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; }
+    .modal.open { display:flex; }
+    .modalCard { background:#fff; padding:20px; border-radius:10px; max-width:90%; max-height:90%; overflow:auto; }
+    .modalCard img { max-width:100%; margin-bottom:10px; }
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="left" id="mapContainer">
-    <div class="topButtons">
-      <button id="btnGeneral" class="active">General</button>
-      <button id="btnPhysical">Physical</button>
-      <button id="btnLogical">Logical</button>
+  <div class="wrap">
+    <div class="left" id="mapContainer">
+      <div class="topButtons">
+        <button id="btnGeneral" class="active">General</button>
+        <button id="btnPhysical">Physical</button>
+        <button id="btnLogical">Logical</button>
+      </div>
+      <div id="scene">
+        <img id="mapImg" src="Six Form Block general.png" alt="map" style="width:100%;height:auto;">
+      </div>
     </div>
-    <div id="scene">
-      <img id="mapImg" src="Six Form Block general.png" alt="map" style="width:100%;height:auto;">
+    <div class="right">
+      <h3 id="panelTitle">Click a room</h3>
+      <div class="deviceList" id="deviceList">Loading devices…</div>
     </div>
   </div>
-  <div class="right">
-    <h3 id="panelTitle">Click a room</h3>
-    <div class="deviceList" id="deviceList">Loading devices…</div>
+
+  <div id="modal" class="modal">
+    <div class="modalCard">
+      <button id="closeModal">Close</button>
+      <h3 id="modalTitle"></h3>
+      <img id="modalImg" src="">
+      <div id="modalBody"></div>
+    </div>
   </div>
-</div>
 
-<div id="modal" class="modal">
-  <div class="modalCard">
-    <button id="closeModal">Close</button>
-    <h3 id="modalTitle"></h3>
-    <img id="modalImg" src="">
-    <div id="modalBody"></div>
-  </div>
-</div>
+  <script>
+    // --- CONFIG ---
+    const COORDS_JSON = '6thformdata.json';
+    const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQCToFK3k1AonGSbmoxSiV3Xef82IV6BRPK_9FtzwmvVHNQDIVo38M0hQHZtKTiVCvmJiJ4kBIgAzO2/pub?output=csv';
+    const ORIGINAL_WIDTH = 9348;
+    const ORIGINAL_HEIGHT = 10632;
+    const CLICK_PADDING = 20;
 
-<script>
-// --- CONFIG ---
-const COORDS_JSON = '6thformdata.json';
-const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQCToFK3k1AonGSbmoxSiV3Xef82IV6BRPK_9FtzwmvVHNQDIVo38M0hQHZtKTiVCvmJiJ4kBIgAzO2/pub?gid=0&single=true&output=csv';
-const ORIGINAL_WIDTH = 9348;
-const ORIGINAL_HEIGHT = 10632;
-const CLICK_PADDING = 20; // bigger clickable area
+    // --- ELEMENTS ---
+    const mapImg = document.getElementById('mapImg');
+    const scene = document.getElementById('scene');
+    const panelTitle = document.getElementById('panelTitle');
+    const deviceList = document.getElementById('deviceList');
+    const modal = document.getElementById('modal');
+    const modalImg = document.getElementById('modalImg');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const btnGeneral = document.getElementById('btnGeneral');
+    const btnPhysical = document.getElementById('btnPhysical');
+    const btnLogical = document.getElementById('btnLogical');
+    const viewerWrap = document.getElementById('mapContainer');
 
-// --- ELEMENTS ---
-const mapImg = document.getElementById('mapImg');
-const scene = document.getElementById('scene');
-const panelTitle = document.getElementById('panelTitle');
-const deviceList = document.getElementById('deviceList');
-const modal = document.getElementById('modal');
-const modalImg = document.getElementById('modalImg');
-const modalTitle = document.getElementById('modalTitle');
-const modalBody = document.getElementById('modalBody');
-const btnGeneral = document.getElementById('btnGeneral');
-const btnPhysical = document.getElementById('btnPhysical');
-const btnLogical = document.getElementById('btnLogical');
-const viewerWrap = document.getElementById('mapContainer');
+    // --- STATE ---
+    let roomsData = [];
+    let devicesByRoom = {};
+    let scale = 1, tx = 0, ty = 0;
 
-// --- STATE ---
-let roomsData = [];
-let devicesByRoom = {};
-let scale = 1, tx = 0, ty = 0;
+    // --- CSV Parser ---
+    function parseCSV(text) {
+      const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+      if (lines.length < 2) return {};
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const data = {};
 
-// --- CSV Parser ---
-function parseCSV(text){
-  const lines=text.split(/\r?\n/).filter(l=>l.trim()!=='');
-  const headers=lines[0].split('\t').map(h=>h.trim().toLowerCase());
-  const data={};
-  for(let i=1;i<lines.length;i++){
-    const row=lines[i].split('\t');
-    const room=row[0];
-    if(!room) continue;
-    if(!data[room]) data[room]=[];
-    let obj={};
-    headers.forEach((h,idx)=>obj[h]=row[idx]||'');
-    data[room].push(obj);
-  }
-  return data;
-}
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].split(',');
+        const obj = {};
+        headers.forEach((h, idx) => obj[h] = (row[idx] || '').trim());
 
-// --- LOAD DATA ---
-async function loadCoords(){
-  const r = await fetch(COORDS_JSON);
-  roomsData = await r.json();
-  mapImg.onload = drawMarkers; // draw markers after map loaded
-}
+        const room = obj['room'] || obj['room name'] || obj['location'] || '';
+        if (!room) continue;
+        if (!data[room]) data[room] = [];
+        data[room].push(obj);
+      }
 
-async function loadDevices(){
-  const r = await fetch(SHEET_CSV);
-  const txt = await r.text();
-  devicesByRoom = parseCSV(txt);
-}
+      console.log('Parsed device data:', data);
+      return data;
+    }
 
-// --- DRAW MARKERS ---
-function drawMarkers(){
-  scene.querySelectorAll('.roomMarker').forEach(m=>m.remove());
-  const scaleX = mapImg.clientWidth / ORIGINAL_WIDTH;
-  const scaleY = mapImg.clientHeight / ORIGINAL_HEIGHT;
+    // --- LOAD DATA ---
+    async function loadCoords() {
+      try {
+        const r = await fetch(COORDS_JSON);
+        roomsData = await r.json();
+        mapImg.onload = drawMarkers;
+      } catch (err) {
+        console.error('Error loading coords JSON:', err);
+      }
+    }
 
-  roomsData.rooms.forEach(r=>{
-    const div = document.createElement('div');
-    div.className='roomMarker';
-    div.dataset.room=r.name;
-    div.title = r.name;
-    div.style.left = (r.x*scaleX - CLICK_PADDING) + 'px';
-    div.style.top = (r.y*scaleY - CLICK_PADDING) + 'px';
-    div.style.width = (r.w*scaleX + CLICK_PADDING*2) + 'px';
-    div.style.height = (r.h*scaleY + CLICK_PADDING*2) + 'px';
-    div.addEventListener('click',e=>{
-      e.stopPropagation();
-      showDevices(r.name);
+    async function loadDevices() {
+      try {
+        const r = await fetch(SHEET_CSV);
+        const txt = await r.text();
+        devicesByRoom = parseCSV(txt);
+      } catch (err) {
+        console.error('Error loading devices CSV:', err);
+      }
+    }
+
+    // --- DRAW MARKERS ---
+    function drawMarkers() {
+      scene.querySelectorAll('.roomMarker').forEach(m => m.remove());
+      const scaleX = mapImg.clientWidth / ORIGINAL_WIDTH;
+      const scaleY = mapImg.clientHeight / ORIGINAL_HEIGHT;
+
+      if (!roomsData.rooms) {
+        console.error('roomsData.rooms not found in JSON');
+        return;
+      }
+
+      roomsData.rooms.forEach(r => {
+        const div = document.createElement('div');
+        div.className = 'roomMarker';
+        div.dataset.room = r.name;
+        div.title = r.name;
+        div.style.left = (r.x * scaleX - CLICK_PADDING) + 'px';
+        div.style.top = (r.y * scaleY - CLICK_PADDING) + 'px';
+        div.style.width = (r.w * scaleX + CLICK_PADDING * 2) + 'px';
+        div.style.height = (r.h * scaleY + CLICK_PADDING * 2) + 'px';
+        div.addEventListener('click', e => {
+          e.stopPropagation();
+          showDevices(r.name);
+        });
+        scene.appendChild(div);
+      });
+    }
+
+    // --- SHOW DEVICES ---
+    function showDevices(room) {
+      panelTitle.textContent = room;
+      const list = devicesByRoom[room] || [];
+      deviceList.innerHTML = '';
+      if (list.length === 0) {
+        deviceList.textContent = 'No devices';
+        return;
+      }
+
+      list.forEach(d => {
+        const el = document.createElement('div');
+        el.className = 'deviceItem';
+        el.textContent = d['device name'] || d['name'] || 'Device';
+        el.addEventListener('click', () => openModal(d));
+        deviceList.appendChild(el);
+      });
+    }
+
+    // --- MODAL ---
+    function openModal(d) {
+      modal.classList.add('open');
+      modalTitle.textContent = d['device name'] || d['name'] || '';
+      modalImg.src = d['image url'] || '';
+      modalBody.innerHTML = `
+        <p><strong>Type:</strong> ${d['type'] || ''}</p>
+        <p><strong>Notes:</strong> ${d['notes'] || ''}</p>
+      `;
+    }
+    document.getElementById('closeModal').addEventListener('click', () => modal.classList.remove('open'));
+
+    // --- MAP SWITCH ---
+    function setActive(btn) {
+      [btnGeneral, btnPhysical, btnLogical].forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+    btnGeneral.addEventListener('click', () => { mapImg.src = 'Six Form Block general.png'; setActive(btnGeneral); });
+    btnPhysical.addEventListener('click', () => { mapImg.src = 'Six Form Block physical.png'; setActive(btnPhysical); });
+    btnLogical.addEventListener('click', () => { mapImg.src = 'Six Form Block logical.png'; setActive(btnLogical); });
+
+    // --- ZOOM/PAN ---
+    let isPanning = false, startX = 0, startY = 0, startTX = 0, startTY = 0;
+    viewerWrap.addEventListener('pointerdown', e => {
+      if (e.target.classList.contains('roomMarker')) return;
+      isPanning = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      startTX = tx;
+      startTY = ty;
     });
-    scene.appendChild(div);
-  });
-}
+    window.addEventListener('pointermove', e => {
+      if (!isPanning) return;
+      tx = startTX + (e.clientX - startX);
+      ty = startTY + (e.clientY - startY);
+      updateTransform();
+    });
+    window.addEventListener('pointerup', () => { isPanning = false; });
+    viewerWrap.addEventListener('wheel', e => {
+      e.preventDefault();
+      const cx = e.clientX, cy = e.clientY;
+      const delta = -e.deltaY * 0.002;
+      const newScale = Math.max(0.05, Math.min(scale * (1 + delta), 5));
+      scale = newScale;
+      updateTransform();
+    }, { passive: false });
 
-// --- SHOW DEVICES ---
-function showDevices(room){
-  panelTitle.textContent = room;
-  const list = devicesByRoom[room] || [];
-  deviceList.innerHTML='';
-  if(list.length===0){ deviceList.textContent='No devices'; return; }
-  list.forEach(d=>{
-    const el=document.createElement('div');
-    el.className='deviceItem';
-    el.textContent=d['device name']||'Device';
-    el.addEventListener('click',()=>openModal(d));
-    deviceList.appendChild(el);
-  });
-}
+    function updateTransform() {
+      scene.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+    }
 
-// --- MODAL ---
-function openModal(d){
-  modal.classList.add('open');
-  modalTitle.textContent = d['device name']||'';
-  modalImg.src = d['image url']||'';
-  modalBody.textContent = `Type: ${d['type']||''}\nNotes: ${d['notes']||''}`;
-}
-document.getElementById('closeModal').addEventListener('click',()=>modal.classList.remove('open'));
-
-// --- MAP SWITCH ---
-function setActive(btn){
-  [btnGeneral,btnPhysical,btnLogical].forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-}
-btnGeneral.addEventListener('click',()=>{mapImg.src='Six Form Block general.png'; setActive(btnGeneral);});
-btnPhysical.addEventListener('click',()=>{mapImg.src='Six Form Block physical.png'; setActive(btnPhysical);});
-btnLogical.addEventListener('click',()=>{mapImg.src='Six Form Block logical.png'; setActive(btnLogical);});
-
-// --- ZOOM/PAN ---
-let isPanning=false,startX=0,startY=0,startTX=0,startTY=0;
-viewerWrap.addEventListener('pointerdown',e=>{ if(e.target.classList.contains('roomMarker')) return; isPanning=true; startX=e.clientX; startY=e.clientY; startTX=tx; startTY=ty; });
-window.addEventListener('pointermove',e=>{ if(!isPanning) return; tx=startTX+(e.clientX-startX); ty=startTY+(e.clientY-startY); updateTransform(); });
-window.addEventListener('pointerup',()=>{isPanning=false;});
-viewerWrap.addEventListener('wheel',e=>{
-  e.preventDefault();
-  const cx=e.clientX,cy=e.clientY;
-  const delta=-e.deltaY*0.002;
-  scale=Math.max(0.05,Math.min(scale*(1+delta),5));
-  tx=cx-(cx-tx)*(scale/(scale/(1+delta)));
-  ty=cy-(cy-ty)*(scale/(scale/(1+delta)));
-  updateTransform();
-},{passive:false});
-function updateTransform(){ scene.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; }
-
-// --- INIT ---
-loadCoords();
-loadDevices();
-</script>
+    // --- INIT ---
+    loadCoords();
+    loadDevices();
+  </script>
 </body>
 </html>
