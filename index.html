@@ -22,7 +22,9 @@
       z-index:10;
       transition: background 0.2s;
     }
-    .roomMarker:hover { background: rgba(6,182,212,0.3); }
+    .roomMarker:hover {
+      background: rgba(6,182,212,0.3);
+    }
     .deviceList { flex:1; overflow:auto; padding:10px; }
     .deviceItem { padding:8px; margin-bottom:5px; background:#f0f0f0; border-radius:5px; cursor:pointer; }
     .modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; }
@@ -53,7 +55,7 @@
     <div class="modalCard">
       <button id="closeModal">Close</button>
       <h3 id="modalTitle"></h3>
-      <img id="modalImg" src="" style="display:none;">
+      <img id="modalImg" src="">
       <div id="modalBody"></div>
     </div>
   </div>
@@ -85,23 +87,42 @@
     let devicesByRoom = {};
     let scale = 1, tx = 0, ty = 0;
 
-    // --- CSV Parser (case-sensitive headers) ---
+    // --- CSV PARSER THAT HANDLES COMMAS IN QUOTES ---
     function parseCSV(text) {
-      const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-      if (lines.length < 2) return {};
-      const headers = lines[0].split(',').map(h => h.trim());
       const data = {};
+      const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+      if (lines.length < 2) return data;
 
+      // Parse headers
+      const headers = [];
+      let inQuotes = false, header = '';
+      for (let char of lines[0]) {
+        if (char === '"') { inQuotes = !inQuotes; continue; }
+        if (char === ',' && !inQuotes) { headers.push(header.trim()); header=''; continue; }
+        header += char;
+      }
+      headers.push(header.trim());
+
+      // Parse rows
       for (let i = 1; i < lines.length; i++) {
-        const row = lines[i].split(',');
+        const row = [];
+        let cell='', inQuotes=false;
+        for (let char of lines[i]) {
+          if (char === '"') { inQuotes = !inQuotes; continue; }
+          if (char === ',' && !inQuotes) { row.push(cell.trim()); cell=''; continue; }
+          cell += char;
+        }
+        row.push(cell.trim());
+
         const obj = {};
-        headers.forEach((h, idx) => obj[h] = (row[idx] || '').trim());
+        headers.forEach((h, idx) => obj[h] = row[idx] || '');
 
         const room = obj['Room'] || '';
         if (!room) continue;
         if (!data[room]) data[room] = [];
         data[room].push(obj);
       }
+
       return data;
     }
 
@@ -111,7 +132,9 @@
         const r = await fetch(COORDS_JSON);
         roomsData = await r.json();
         mapImg.onload = drawMarkers;
-      } catch (err) { console.error('Error loading coords JSON:', err); }
+      } catch (err) {
+        console.error('Error loading coords JSON:', err);
+      }
     }
 
     async function loadDevices() {
@@ -119,7 +142,9 @@
         const r = await fetch(SHEET_CSV);
         const txt = await r.text();
         devicesByRoom = parseCSV(txt);
-      } catch (err) { console.error('Error loading devices CSV:', err); }
+      } catch (err) {
+        console.error('Error loading devices CSV:', err);
+      }
     }
 
     // --- DRAW MARKERS ---
@@ -137,9 +162,12 @@
         div.title = r.name;
         div.style.left = (r.x * scaleX - CLICK_PADDING) + 'px';
         div.style.top = (r.y * scaleY - CLICK_PADDING) + 'px';
-        div.style.width = (r.w * scaleX + CLICK_PADDING * 2) + 'px';
-        div.style.height = (r.h * scaleY + CLICK_PADDING * 2) + 'px';
-        div.addEventListener('click', e => { e.stopPropagation(); showDevices(r.name); });
+        div.style.width = (r.w * scaleX + CLICK_PADDING*2) + 'px';
+        div.style.height = (r.h * scaleY + CLICK_PADDING*2) + 'px';
+        div.addEventListener('click', e => {
+          e.stopPropagation();
+          showDevices(r.name);
+        });
         scene.appendChild(div);
       });
     }
@@ -154,37 +182,35 @@
       list.forEach(d => {
         const el = document.createElement('div');
         el.className = 'deviceItem';
-        el.textContent = d['Device Name'] || d['devicename'] || d['name'] || 'Device';
+        el.textContent = d['Device Name'] || d['devicename'] || d['Name'] || 'Device';
         el.addEventListener('click', () => openModal(d));
         deviceList.appendChild(el);
       });
     }
 
-// --- MODAL ---
-function openModal(d) {
-  modal.classList.add('open');
-  modalTitle.textContent = d['Device Name'] || d['devicename'] || d['name'] || '';
-  
-  // Use only the Image URL column
-  const imgUrl = d['Image URL'] || '';
-  if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
-    modalImg.src = imgUrl;
-    modalImg.style.display = 'block';
-  } else {
-    modalImg.style.display = 'none';
-  }
+    // --- MODAL ---
+    function openModal(d){
+      modal.classList.add('open');
+      modalTitle.textContent = d['Device Name'] || d['devicename'] || d['Name'] || '';
 
-  modalBody.innerHTML = `
-    <p><strong>Type:</strong> ${d['Type'] || ''}</p>
-    <p><strong>Notes:</strong> ${d['Notes'] || ''}</p>
-  `;
-}
+      const imgUrl = d['Image URL'] || d['image url'] || d['Image'] || d['image'] || '';
+      if(imgUrl && (imgUrl.startsWith('http://') || imgUrl.startsWith('https://'))) {
+        modalImg.src = imgUrl;
+        modalImg.style.display = 'block';
+      } else {
+        modalImg.style.display = 'none';
+      }
 
+      modalBody.innerHTML = `
+        <p><strong>Type:</strong> ${d['Type'] || d['type'] || ''}</p>
+        <p><strong>Notes:</strong> ${d['Notes'] || d['notes'] || ''}</p>
+      `;
+    }
     document.getElementById('closeModal').addEventListener('click', ()=>modal.classList.remove('open'));
 
     // --- MAP SWITCH ---
-    function setActive(btn) {
-      [btnGeneral, btnPhysical, btnLogical].forEach(b=>b.classList.remove('active'));
+    function setActive(btn){
+      [btnGeneral,btnPhysical,btnLogical].forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
     }
     btnGeneral.addEventListener('click', ()=>{ mapImg.src='Six Form Block general.png'; setActive(btnGeneral); });
@@ -193,10 +219,11 @@ function openModal(d) {
 
     // --- ZOOM/PAN ---
     let isPanning=false,startX=0,startY=0,startTX=0,startTY=0;
-    viewerWrap.addEventListener('pointerdown', e => { if(e.target.classList.contains('roomMarker')) return; isPanning=true; startX=e.clientX; startY=e.clientY; startTX=tx; startTY=ty; });
-    window.addEventListener('pointermove', e => { if(!isPanning) return; tx=startTX+(e.clientX-startX); ty=startTY+(e.clientY-startY); updateTransform(); });
+    viewerWrap.addEventListener('pointerdown', e=>{ if(e.target.classList.contains('roomMarker')) return; isPanning=true; startX=e.clientX; startY=e.clientY; startTX=tx; startTY=ty; });
+    window.addEventListener('pointermove', e=>{ if(!isPanning) return; tx=startTX+(e.clientX-startX); ty=startTY+(e.clientY-startY); updateTransform(); });
     window.addEventListener('pointerup', ()=>{isPanning=false;});
-    viewerWrap.addEventListener('wheel', e => { e.preventDefault(); const cx=e.clientX, cy=e.clientY; const delta=-e.deltaY*0.002; scale=Math.max(0.05,Math.min(scale*(1+delta),5)); updateTransform(); }, {passive:false});
+    viewerWrap.addEventListener('wheel', e=>{ e.preventDefault(); const cx=e.clientX,cy=e.clientY; const delta=-e.deltaY*0.002; scale=Math.max(0.05,Math.min(scale*(1+delta),5)); updateTransform(); }, {passive:false});
+
     function updateTransform(){ scene.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; }
 
     // --- INIT ---
