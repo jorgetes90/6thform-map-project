@@ -9,15 +9,10 @@ body, html { margin:0; padding:0; height:100%; font-family:sans-serif; overflow:
 .wrap { display:flex; height:100vh; }
 .left { flex:1; position:relative; overflow:hidden; background:#eef2f5; }
 .right { width:400px; background:#fff; border-left:1px solid #ccc; display:flex; flex-direction:column; }
-
 .topButtons { position:absolute; top:10px; left:10px; display:flex; gap:5px; z-index:20; }
-.hidden { display:none !important; }
-
 .topButtons button { padding:6px 10px; border:none; border-radius:4px; background:#06b6d4; color:#fff; cursor:pointer; }
 .topButtons button.active { background:#0ea5e9; }
-
 #scene { position:relative; width:100%; height:100%; transform-origin:0 0; }
-
 .roomMarker {
   position:absolute;
   border:2px solid #06b6d4;
@@ -28,10 +23,8 @@ body, html { margin:0; padding:0; height:100%; font-family:sans-serif; overflow:
   transition: background 0.2s;
 }
 .roomMarker:hover { background: rgba(6,182,212,0.3); }
-
 .deviceList { flex:1; overflow:auto; padding:10px; }
 .deviceItem { padding:8px; margin-bottom:5px; background:#f0f0f0; border-radius:5px; cursor:pointer; }
-
 .modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; }
 .modal.open { display:flex; }
 .modalCard { background:#fff; padding:20px; border-radius:10px; max-width:90%; max-height:90%; overflow:auto; }
@@ -41,7 +34,7 @@ body, html { margin:0; padding:0; height:100%; font-family:sans-serif; overflow:
 <body>
 <div class="wrap">
   <div class="left" id="mapContainer">
-    <div class="topButtons" id="buttonBar">
+    <div class="topButtons">
       <button id="btnGeneral" class="active">General</button>
       <button id="btnPhysical">Physical</button>
       <button id="btnLogical">Logical</button>
@@ -68,45 +61,36 @@ body, html { margin:0; padding:0; height:100%; font-family:sans-serif; overflow:
 <script>
 const COORDS_JSON = '6thformdata.json';
 const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQCToFK3k1AonGSbmoxSiV3Xef82IV6BRPK_9FtzwmvVHNQDIVo38M0hQHZtKTiVCvmJiJ4kBIgAzO2/pub?output=csv';
-
 const ORIGINAL_WIDTH = 9348;
 const ORIGINAL_HEIGHT = 10632;
 const CLICK_PADDING = 20;
-
-const offsetX = 15;
-const offsetY = 10;
+const offsetX = 15; // moves all markers 15px to the right
+const offsetY = 10; // moves all markers 10px down
 
 const mapImg = document.getElementById('mapImg');
 const scene = document.getElementById('scene');
 const panelTitle = document.getElementById('panelTitle');
 const deviceList = document.getElementById('deviceList');
-
 const modal = document.getElementById('modal');
 const modalImg = document.getElementById('modalImg');
 const modalTitle = document.getElementById('modalTitle');
 const modalBody = document.getElementById('modalBody');
-
 const btnGeneral = document.getElementById('btnGeneral');
 const btnPhysical = document.getElementById('btnPhysical');
 const btnLogical = document.getElementById('btnLogical');
-const buttonBar = document.getElementById('buttonBar');
-
 const viewerWrap = document.getElementById('mapContainer');
 
 let roomsData = [];
 let devicesByRoom = {};
-let scale = 1;
-let tx = 0;
-let ty = 0;
+let scale=1, tx=0, ty=0;
 
-/* ------------ CSV PARSER ------------ */
+// --- CSV parser that handles quotes and commas ---
 function parseCSV(text){
   const lines = text.split(/\r?\n/).filter(l=>l.trim()!=='');
-  if(lines.length < 2) return {};
+  if(lines.length<2) return {};
   const headers = [];
   const firstLine = lines[0];
   let curr='', inQuotes=false;
-
   for(let c of firstLine){
     if(c === '"'){ inQuotes = !inQuotes; continue; }
     if(c === ',' && !inQuotes){ headers.push(curr.trim()); curr=''; continue; }
@@ -116,181 +100,107 @@ function parseCSV(text){
 
   const data = {};
   for(let i=1;i<lines.length;i++){
-    const row=[];
+    const row = [];
     let cell='', inQuotes=false;
     for(let c of lines[i]){
-      if(c === '"'){ inQuotes=!inQuotes; continue; }
+      if(c === '"'){ inQuotes = !inQuotes; continue; }
       if(c === ',' && !inQuotes){ row.push(cell.trim()); cell=''; continue; }
       cell += c;
     }
     row.push(cell.trim());
-
     const obj = {};
     headers.forEach((h,idx)=>obj[h]=row[idx]||'');
     const room = obj['Room'] || obj['room'] || '';
     if(!room) continue;
-
     if(!data[room]) data[room]=[];
     data[room].push(obj);
   }
   return data;
 }
 
-/* ------------ LOAD COORDS ------------ */
+// --- load coords ---
 async function loadCoords(){
-  try {
-    const r = await fetch(COORDS_JSON);
-    roomsData = await r.json();
-    mapImg.onload = drawMarkers;
-  } catch(e){ console.error(e); }
+  try{ const r = await fetch(COORDS_JSON); roomsData = await r.json(); mapImg.onload = drawMarkers; }
+  catch(err){ console.error('Error loading coords JSON', err);}
 }
 
-/* ------------ LOAD DEVICES ------------ */
+// --- load devices ---
 async function loadDevices(){
-  try {
-    const r = await fetch(SHEET_CSV);
-    const txt = await r.text();
-    devicesByRoom = parseCSV(txt);
-  } catch(e){ console.error(e); }
+  try{ const r = await fetch(SHEET_CSV); const txt = await r.text(); devicesByRoom = parseCSV(txt); }
+  catch(err){ console.error('Error loading devices CSV', err);}
 }
 
-/* ------------ DRAW MARKERS ------------ */
+// --- draw markers ---
 function drawMarkers(){
   scene.querySelectorAll('.roomMarker').forEach(m=>m.remove());
-
   const scaleX = mapImg.clientWidth / ORIGINAL_WIDTH;
   const scaleY = mapImg.clientHeight / ORIGINAL_HEIGHT;
-
   if(!roomsData.rooms) return;
-
   roomsData.rooms.forEach(r=>{
     const div = document.createElement('div');
     div.className='roomMarker';
-    div.dataset.room=r.name;
+    div.dataset.room = r.name;
     div.title=r.name;
-
-    div.style.left = (r.x*scaleX - CLICK_PADDING + offsetX) + 'px';
-    div.style.top  = (r.y*scaleY - CLICK_PADDING + offsetY) + 'px';
-    div.style.width = (r.w*scaleX + CLICK_PADDING*2) + 'px';
-    div.style.height = (r.h*scaleY + CLICK_PADDING*2) + 'px';
-
-    div.addEventListener('click', e=>{
-      e.stopPropagation();
-      showDevices(r.name);
-    });
-
+    div.style.left = (r.x*scaleX - CLICK_PADDING + offsetX)+'px';
+    div.style.top = (r.y*scaleY - CLICK_PADDING + offsetY)+'px';
+    div.style.width = (r.w*scaleX + CLICK_PADDING*2)+'px';
+    div.style.height = (r.h*scaleY + CLICK_PADDING*2)+'px';
+    div.addEventListener('click', e=>{ e.stopPropagation(); showDevices(r.name); });
     scene.appendChild(div);
   });
 }
 
-/* ------------ SHOW DEVICES ------------ */
+// --- show devices ---
 function showDevices(room){
-  panelTitle.textContent = room;
+  panelTitle.textContent=room;
   const list = devicesByRoom[room] || [];
-  deviceList.innerHTML = '';
-
-  if(list.length === 0){
-    deviceList.textContent = 'No devices';
-    return;
-  }
-
+  deviceList.innerHTML='';
+  if(list.length===0){ deviceList.textContent='No devices'; return; }
   list.forEach(d=>{
     const el = document.createElement('div');
     el.className='deviceItem';
-    el.textContent = d['Device Name'] || d['Name'] || 'Device';
+    el.textContent = d['Device Name'] || d['devicename'] || d['Name'] || 'Device';
     el.addEventListener('click', ()=>openModal(d));
     deviceList.appendChild(el);
   });
 }
 
-/* ------------ MODAL ------------ */
+// --- modal ---
 function openModal(d){
   modal.classList.add('open');
-  modalTitle.textContent = d['Device Name'] || d['Name'] || '';
+  modalTitle.textContent = d['Device Name'] || d['devicename'] || d['Name'] || '';
 
-  const imgUrl = d['Image URL'] || d['Image'] || '';
-  if(imgUrl && imgUrl.startsWith('http')){
+  // Try all common variants of Image URL
+  const imgUrl = d['Image URL'] || d['image url'] || d['Image'] || d['image'] || '';
+  if(imgUrl && (imgUrl.startsWith('http://') || imgUrl.startsWith('https://'))){
     modalImg.src = imgUrl;
-    modalImg.style.display='block';
+    modalImg.style.display = 'block';
   } else {
-    modalImg.style.display='none';
+    modalImg.style.display = 'none';
   }
 
   modalBody.innerHTML = `
-    <p><strong>Type:</strong> ${d['Type'] || ''}</p>
-    <p><strong>Notes:</strong> ${d['Notes'] || ''}</p>
+    <p><strong>Type:</strong> ${d['Type'] || d['type'] || ''}</p>
+    <p><strong>Notes:</strong> ${d['Notes'] || d['notes'] || ''}</p>
   `;
 }
-document.getElementById('closeModal').addEventListener('click',()=>modal.classList.remove('open'));
+document.getElementById('closeModal').addEventListener('click', ()=>modal.classList.remove('open'));
 
-/* ------------ MAP SWITCH ------------ */
-function setActive(btn){
-  [btnGeneral,btnPhysical,btnLogical].forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-}
+// --- map switch ---
+function setActive(btn){ [btnGeneral,btnPhysical,btnLogical].forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+btnGeneral.addEventListener('click',()=>{ mapImg.src='Six Form Block general.png'; setActive(btnGeneral); });
+btnPhysical.addEventListener('click',()=>{ mapImg.src='Six Form Block physical.png'; setActive(btnPhysical); });
+btnLogical.addEventListener('click',()=>{ mapImg.src='Six Form Block logical.png'; setActive(btnLogical); });
 
-btnGeneral.addEventListener('click',()=>{
-  mapImg.src='Six Form Block general.png';
-  setActive(btnGeneral);
-  buttonBar.classList.add('hidden');
-});
-
-btnPhysical.addEventListener('click',()=>{
-  mapImg.src='Six Form Block physical.png';
-  setActive(btnPhysical);
-  buttonBar.classList.remove('hidden');
-});
-
-btnLogical.addEventListener('click',()=>{
-  mapImg.src='Six Form Block logical.png';
-  setActive(btnLogical);
-  buttonBar.classList.add('hidden');
-});
-
-/* ------------ ZOOM + PAN (cursor-center zoom) ------------ */
+// --- zoom/pan ---
 let isPanning=false,startX=0,startY=0,startTX=0,startTY=0;
+viewerWrap.addEventListener('pointerdown', e=>{ if(e.target.classList.contains('roomMarker')) return; isPanning=true; startX=e.clientX; startY=e.clientY; startTX=tx; startTY=ty; });
+window.addEventListener('pointermove', e=>{ if(!isPanning) return; tx=startTX+(e.clientX-startX); ty=startTY+(e.clientY-startY); updateTransform(); });
+window.addEventListener('pointerup', ()=>{ isPanning=false; });
+viewerWrap.addEventListener('wheel', e=>{ e.preventDefault(); const delta=-e.deltaY*0.002; scale=Math.max(0.05,Math.min(scale*(1+delta),5)); updateTransform(); }, {passive:false});
+function updateTransform(){ scene.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; }
 
-viewerWrap.addEventListener('pointerdown', e=>{
-  if(e.target.classList.contains('roomMarker')) return;
-  isPanning=true;
-  startX=e.clientX;
-  startY=e.clientY;
-  startTX=tx;
-  startTY=ty;
-});
-
-window.addEventListener('pointermove', e=>{
-  if(!isPanning) return;
-  tx = startTX + (e.clientX - startX);
-  ty = startTY + (e.clientY - startY);
-  updateTransform();
-});
-
-window.addEventListener('pointerup', ()=>isPanning=false);
-
-/* --- REAL mouse-centered zoom --- */
-viewerWrap.addEventListener('wheel', e=>{
-  e.preventDefault();
-
-  const rect = scene.getBoundingClientRect();
-  const mouseX = (e.clientX - rect.left - tx) / scale;
-  const mouseY = (e.clientY - rect.top - ty) / scale;
-
-  const delta = -e.deltaY * 0.002;
-  const oldScale = scale;
-  scale = Math.max(0.05, Math.min(scale * (1 + delta), 5));
-
-  tx -= (mouseX * scale - mouseX * oldScale);
-  ty -= (mouseY * scale - mouseY * oldScale);
-
-  updateTransform();
-},{passive:false});
-
-function updateTransform(){
-  scene.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
-}
-
-/* ------------ INIT ------------ */
+// --- INIT ---
 loadCoords();
 loadDevices();
 </script>
